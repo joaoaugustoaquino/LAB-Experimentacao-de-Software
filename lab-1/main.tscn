@@ -1,8 +1,28 @@
 [gd_scene format=3 uid="uid://b43xwv3ej0kou"]
 
 [ext_resource type="Script" uid="uid://dflp2qigejl83" path="res://main.gd" id="1_ig7tw"]
+[ext_resource type="Script" uid="uid://cnoxo0ryw0nxo" path="res://languague_chart.gd" id="2_0xm2m"]
+[ext_resource type="Script" uid="uid://ddp8medney5f3" path="res://charts.gd" id="2_lquwl"]
+[ext_resource type="Script" uid="uid://4r25gjrc7vjg" path="res://pr_histogram.gd" id="3_1bvp3"]
+[ext_resource type="Script" uid="uid://doeesyb0qdsrh" path="res://issue_ratio_histogram.gd" id="4_lquwl"]
 
 [node name="Main" type="Node" unique_id=1253474046]
 script = ExtResource("1_ig7tw")
 
 [node name="HTTPRequest" type="HTTPRequest" parent="." unique_id=110024648]
+
+[node name="Charts" type="Node" parent="." unique_id=593906076]
+script = ExtResource("2_lquwl")
+
+[node name="LanguagueChart" type="Node2D" parent="Charts" unique_id=176998500]
+script = ExtResource("2_0xm2m")
+
+[node name="PRHistogram" type="Node2D" parent="Charts" unique_id=149724743]
+script = ExtResource("3_1bvp3")
+
+[node name="IssueRatioHistogram" type="Node2D" parent="Charts" unique_id=2135725622]
+script = ExtResource("4_lquwl")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=767134274]
+position = Vector2(551, 150)
+zoom = Vector2(0.57, 0.57)

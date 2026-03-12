@@ -1,8 +1,10 @@
 extends Node
 
-const GITHUB_TOKEN = "your_classic_token"
+const GITHUB_TOKEN = "classic_token"
 const ENDPOINT = "https://api.github.com/graphql"
 const TARGET_TOTAL = 1000
+	
+@export var coletar_dados := false
 
 @onready var http: HTTPRequest = $HTTPRequest
 
@@ -19,6 +21,12 @@ var file: FileAccess
 
 
 func _ready():
+	if coletar_dados:
+		iniciar_coleta()
+	else:
+		print("Modo análise: CSV não será modificado.")
+
+func iniciar_coleta():
 	http.request_completed.connect(_on_request_completed)
 	
 	file = FileAccess.open("user://repos.csv", FileAccess.WRITE)
@@ -195,3 +203,4 @@ func _finish_collection():
 	file.close()
 	
 	print("CSV gerado em user://repos.csv")
+	print(ProjectSettings.globalize_path("user://repos.csv"))

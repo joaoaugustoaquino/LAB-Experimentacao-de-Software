@@ -1,2 +1,6 @@
-res://main.gd
 res://main.tscn
+res://main.gd
+res://languague_chart.gd
+res://issue_ratio_histogram.gd
+res://pr_histogram.gd
+res://charts.gd
