@@ -1,0 +1,11 @@
+63f7b34db8d8cdea90c76aacccf841ec
+::res://::1774539773
+charts.gd::GDScript::7402819553917246878::1773327262::0::1::::<>Node<><>0<>0<><>::
+icon.svg::CompressedTexture2D::587657552860426919::1772022700::1772022703::1::::<><><>0<>0<>c63e9912bfbf793776060c8879932358<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
+issue_ratio_histogram.gd::GDScript::8150439648551963785::1773325295::0::1::::<>Node2D<><>0<>0<><>::
+languague_chart.gd::GDScript::5715620455652033848::1773323111::0::1::::<>Node2D<><>0<>0<><>::
+main.gd::GDScript::7533874248901414898::1773328252::0::1::::<>Node<><>0<>0<><>::
+main.tscn::PackedScene::4481136651048890352::1773328454::0::1::::<><><>0<>0<><>::uid://dflp2qigejl83::::res://main.gd<>uid://cnoxo0ryw0nxo::::res://languague_chart.gd<>uid://ddp8medney5f3::::res://charts.gd<>uid://4r25gjrc7vjg::::res://pr_histogram.gd<>uid://doeesyb0qdsrh::::res://issue_ratio_histogram.gd
+pr_histogram.gd::GDScript::2072264149763494540::1773325152::0::1::::<>Node2D<><>0<>0<><>::
+::res://fonts/::1773325031
+Roboto-Regular.ttf::FontFile::421632130071836504::1773325018::1773325031::1::::<><><>0<>0<>c0fbef676c2ec0ed655d5659dd177af2<>res://.godot/imported/Roboto-Regular.ttf-4d18b75fdf98fb7e81008bd193bccd42.fontdata::

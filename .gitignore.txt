@@ -1,0 +1,11 @@
+# dados grandes
+*.csv
+
+# python
+__pycache__/
+
+# godot lixo
+.godot/
+.import/
+
+lab-2/data/*.csv
