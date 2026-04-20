@@ -39,7 +39,6 @@ def get_top_repos():
         data = res.json()
 
         for r in data.get("items", []):
-            # 🔴 filtros úteis (evita lixo)
             if r["language"] in [None, "Markdown"]:
                 continue
             if r.get("fork"):
@@ -51,9 +50,6 @@ def get_top_repos():
 
     return repos[:MAX_REPOS]
 
-# -------------------------------
-# DETALHES DO PR
-# -------------------------------
 def get_pr_details(owner, repo, number):
     url = f"{BASE_URL}/repos/{owner}/{repo}/pulls/{number}"
     res = requests.get(url, headers=HEADERS)
@@ -63,9 +59,6 @@ def get_pr_details(owner, repo, number):
 
     return res.json()
 
-# -------------------------------
-# REVIEWS
-# -------------------------------
 def get_reviews(owner, repo, number):
     url = f"{BASE_URL}/repos/{owner}/{repo}/pulls/{number}/reviews"
     res = requests.get(url, headers=HEADERS)
@@ -76,9 +69,6 @@ def get_reviews(owner, repo, number):
     data = res.json()
     return data if isinstance(data, list) else []
 
-# -------------------------------
-# COLETA PRs
-# -------------------------------
 def get_prs(owner, repo):
     prs = []
     page = 1
@@ -93,7 +83,6 @@ def get_prs(owner, repo):
 
         res = requests.get(url, headers=HEADERS, params=params)
 
-        # 🔴 TRATAMENTO DE REPO SEM PR
         if res.status_code == 404:
             print(f"Repo sem PRs: {owner}/{repo}")
             return []
@@ -153,9 +142,6 @@ def get_prs(owner, repo):
 
     return prs
 
-# -------------------------------
-# PROCESSAMENTO
-# -------------------------------
 def process_repo(r):
     owner = r["owner"]["login"]
     name = r["name"]
@@ -164,9 +150,6 @@ def process_repo(r):
 
     return get_prs(owner, name)
 
-# -------------------------------
-# MAIN
-# -------------------------------
 def main():
     repos = get_top_repos()
     dataset = []
