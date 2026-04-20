@@ -1,5 +1,4 @@
 import requests
-import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
@@ -12,7 +11,12 @@ HEADERS = {
 BASE_URL = "https://api.github.com"
 
 MAX_PAGES = 2
+MAX_PR_PER_REPO = 15
+MAX_REPOS = 40
 
+# -------------------------------
+# TOP REPOS
+# -------------------------------
 def get_top_repos():
     repos = []
 
@@ -29,38 +33,57 @@ def get_top_repos():
         res = requests.get(url, headers=HEADERS, params=params)
 
         if res.status_code != 200:
-            print("Erro repos:", res.status_code, res.text)
+            print("Erro repos:", res.status_code)
             return []
 
         data = res.json()
-        items = data.get("items", [])
 
-        for r in items:
+        for r in data.get("items", []):
+            # 🔴 filtros úteis (evita lixo)
             if r["language"] in [None, "Markdown"]:
                 continue
+            if r.get("fork"):
+                continue
+            if r.get("archived"):
+                continue
+
             repos.append(r)
 
-    return repos[:200]
+    return repos[:MAX_REPOS]
 
-def has_min_prs(owner, repo):
-    url = f"{BASE_URL}/search/issues"
-    params = {
-        "q": f"repo:{owner}/{repo} type:pr state:closed"
-    }
-
-    res = requests.get(url, headers=HEADERS, params=params)
+# -------------------------------
+# DETALHES DO PR
+# -------------------------------
+def get_pr_details(owner, repo, number):
+    url = f"{BASE_URL}/repos/{owner}/{repo}/pulls/{number}"
+    res = requests.get(url, headers=HEADERS)
 
     if res.status_code != 200:
-        return False
+        return None
+
+    return res.json()
+
+# -------------------------------
+# REVIEWS
+# -------------------------------
+def get_reviews(owner, repo, number):
+    url = f"{BASE_URL}/repos/{owner}/{repo}/pulls/{number}/reviews"
+    res = requests.get(url, headers=HEADERS)
+
+    if res.status_code != 200:
+        return []
 
     data = res.json()
-    return data.get("total_count", 0) >= 100
+    return data if isinstance(data, list) else []
 
+# -------------------------------
+# COLETA PRs
+# -------------------------------
 def get_prs(owner, repo):
     prs = []
     page = 1
 
-    while page <= MAX_PAGES:
+    while page <= MAX_PAGES and len(prs) < MAX_PR_PER_REPO:
         url = f"{BASE_URL}/repos/{owner}/{repo}/pulls"
         params = {
             "state": "closed",
@@ -69,6 +92,11 @@ def get_prs(owner, repo):
         }
 
         res = requests.get(url, headers=HEADERS, params=params)
+
+        # 🔴 TRATAMENTO DE REPO SEM PR
+        if res.status_code == 404:
+            print(f"Repo sem PRs: {owner}/{repo}")
+            return []
 
         if res.status_code != 200:
             print(f"Erro PR {owner}/{repo}:", res.status_code)
@@ -80,6 +108,9 @@ def get_prs(owner, repo):
             break
 
         for pr in data:
+            if len(prs) >= MAX_PR_PER_REPO:
+                break
+
             created = pr.get("created_at")
             closed = pr.get("closed_at")
 
@@ -92,42 +123,55 @@ def get_prs(owner, repo):
 
             analysis_time = (closed_dt - created_dt).total_seconds()
 
-            # 🔥 filtro obrigatório do lab
             if analysis_time < 3600:
                 continue
 
-            pr_data = {
+            number = pr["number"]
+
+            details = get_pr_details(owner, repo, number)
+            if not details:
+                continue
+
+            reviews = get_reviews(owner, repo, number)
+            if len(reviews) == 0:
+                continue
+
+            prs.append({
                 "repo": f"{owner}/{repo}",
                 "analysis_time": analysis_time,
                 "comments": pr.get("comments", 0),
                 "description_length": len(pr.get("body") or ""),
-                "status": "merged" if pr.get("merged_at") else "closed"
-            }
+                "status": "merged" if pr.get("merged_at") else "closed",
 
-            prs.append(pr_data)
+                "additions": details.get("additions", 0),
+                "deletions": details.get("deletions", 0),
+                "files": details.get("changed_files", 0),
+                "reviews": len(reviews)
+            })
 
         page += 1
 
     return prs
 
+# -------------------------------
+# PROCESSAMENTO
+# -------------------------------
 def process_repo(r):
     owner = r["owner"]["login"]
     name = r["name"]
 
     print(f"Processando {owner}/{name}...")
 
-    if not has_min_prs(owner, name):
-        return []
-
     return get_prs(owner, name)
 
-
+# -------------------------------
+# MAIN
+# -------------------------------
 def main():
     repos = get_top_repos()
-
     dataset = []
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=10) as executor:
         results = executor.map(process_repo, repos)
 
     for prs in results:
