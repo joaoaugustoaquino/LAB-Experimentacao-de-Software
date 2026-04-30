@@ -1,166 +1,158 @@
-import requests
-from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
+# -*- coding: utf-8 -*-
+"""
+main.py  -  Lab03: Caracterizando a Atividade de Code Review no GitHub
+Execucao:
+    python main.py --collect   -> coleta repositorios + PRs e salva prs_dataset.csv
+    python main.py --analyse   -> carrega prs_dataset.csv e gera analises / graficos
+    python main.py             -> executa coleta + analise
+"""
 
-GITHUB_TOKEN = "token"
-HEADERS = {
-    "Authorization": f"token {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github+json"
-}
+import argparse
+import os
+import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-BASE_URL = "https://api.github.com"
+import pandas as pd
 
-MAX_PAGES = 2
-MAX_PR_PER_REPO = 15
-MAX_REPOS = 40
+import repositories_adapter
+import pr_adapter
+import analysis
 
-# -------------------------------
-# TOP REPOS
-# -------------------------------
-def get_top_repos():
-    repos = []
+# Force UTF-8 output on Windows
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
 
-    for page in range(1, 3):
-        url = f"{BASE_URL}/search/repositories"
-        params = {
-            "q": "stars:>10000",
-            "sort": "stars",
-            "order": "desc",
-            "per_page": 100,
-            "page": page
+# Configuracoes
+DATASET_PATH = "prs_dataset.csv"
+REPOS_PATH = "repos_selected.csv"
+TOP_REPOS = 200          # numero de repositorios mais populares a avaliar
+MAX_PRS_PER_REPO = 200   # limite de PRs coletados por repositorio
+MAX_WORKERS = 5          # workers paralelos para coleta de PRs
+
+# Lock global para escrita thread-safe no dataset
+_write_lock = threading.Lock()
+
+
+def _collect_repo(idx: int, total: int, row: dict, already_done: set,
+                  all_prs: list, save_path: str) -> int:
+    """Coleta PRs de um unico repositorio (executado em worker thread)."""
+    repo_full = row["repo"]
+    if repo_full in already_done:
+        print(f"  [{idx}/{total}] Pulando {repo_full} (ja coletado)")
+        return 0
+
+    print(f"  [{idx}/{total}] Coletando PRs de {repo_full}...")
+    try:
+        prs = pr_adapter.fetch_prs_for_repo(row["owner"], row["name"], max_prs=MAX_PRS_PER_REPO)
+    except Exception as e:
+        print(f"  [ERROR] Falha ao coletar {repo_full}: {e}. Pulando...")
+        prs = []
+
+    with _write_lock:
+        all_prs.extend(prs)
+        total_so_far = len(all_prs)
+        pd.DataFrame(all_prs).to_csv(save_path, index=False)
+
+    print(f"  [{idx}/{total}] {repo_full} -> {len(prs)} PRs (total acumulado: {total_so_far})")
+    return len(prs)
+
+
+def collect():
+    """Coleta os repositorios e PRs, salvando o dataset em CSV."""
+    print("\n[INFO] Iniciando coleta de repositorios populares...\n")
+    raw_repos = repositories_adapter.fetch_top_repositories(total=TOP_REPOS, batch_size=25)
+
+    repos_info = []
+    for r in raw_repos:
+        node = r["node"]
+        repos_info.append({
+            "repo": node["nameWithOwner"],
+            "owner": node["owner"]["login"],
+            "name": node["name"],
+            "stars": node["stargazerCount"],
+            "total_prs_merged_closed": node["pullRequests"]["totalCount"],
+        })
+
+    df_repos = pd.DataFrame(repos_info)
+    df_repos.to_csv(REPOS_PATH, index=False)
+    print(f"[OK] {len(df_repos)} repositorios selecionados e salvos em '{REPOS_PATH}'")
+    print(df_repos[["repo", "stars", "total_prs_merged_closed"]].to_string(index=False))
+
+    # Resume support: load already collected PRs if dataset exists
+    if os.path.exists(DATASET_PATH):
+        df_existing = pd.read_csv(DATASET_PATH)
+        already_done = set(df_existing["repo"].unique())
+        all_prs = df_existing.to_dict("records")
+        print(f"\n[INFO] Retomando coleta. {len(already_done)} repos ja processados ({len(all_prs)} PRs).")
+    else:
+        already_done = set()
+        all_prs = []
+
+    print(f"\n\n[INFO] Iniciando coleta de Pull Requests com {MAX_WORKERS} workers paralelos...\n")
+    total = len(df_repos)
+    rows = [row for _, row in df_repos.iterrows()]
+
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = {
+            executor.submit(
+                _collect_repo, i + 1, total, rows[i], already_done, all_prs, DATASET_PATH
+            ): rows[i]["repo"]
+            for i in range(total)
         }
+        for future in as_completed(futures):
+            repo = futures[future]
+            try:
+                future.result()
+            except Exception as e:
+                print(f"  [ERROR] Excecao nao tratada em {repo}: {e}")
 
-        res = requests.get(url, headers=HEADERS, params=params)
+    with _write_lock:
+        df_prs = pd.DataFrame(all_prs)
+        df_prs.to_csv(DATASET_PATH, index=False)
 
-        if res.status_code != 200:
-            print("Erro repos:", res.status_code)
-            return []
+    print(f"\n[OK] Dataset salvo em '{DATASET_PATH}' com {len(df_prs)} PRs.\n")
+    return df_prs
 
-        data = res.json()
 
-        for r in data.get("items", []):
-            if r["language"] in [None, "Markdown"]:
-                continue
-            if r.get("fork"):
-                continue
-            if r.get("archived"):
-                continue
+def analyse(df: pd.DataFrame = None):
+    """Carrega o dataset (se necessario) e executa todas as analises."""
+    if df is None:
+        if not os.path.exists(DATASET_PATH):
+            print(f"[WARN] Dataset '{DATASET_PATH}' nao encontrado. Execute com --collect primeiro.")
+            return
+        df = analysis.load_dataset(DATASET_PATH)
 
-            repos.append(r)
+    print(f"\n[INFO] Dataset carregado: {len(df)} PRs de {df['repo'].nunique()} repositorios.\n")
 
-    return repos[:MAX_REPOS]
+    # Estatisticas descritivas
+    analysis.print_medians(df)
 
-def get_pr_details(owner, repo, number):
-    url = f"{BASE_URL}/repos/{owner}/{repo}/pulls/{number}"
-    res = requests.get(url, headers=HEADERS)
+    # Correlacoes (8 RQs)
+    print("\n" + "=" * 70)
+    print("CORRELACOES DE SPEARMAN - RQ01 a RQ08")
+    print("=" * 70)
+    analysis.run_rq_analysis(df)
 
-    if res.status_code != 200:
-        return None
+    # Graficos
+    analysis.plot_boxplots(df)
+    analysis.plot_scatter_reviews(df)
 
-    return res.json()
-
-def get_reviews(owner, repo, number):
-    url = f"{BASE_URL}/repos/{owner}/{repo}/pulls/{number}/reviews"
-    res = requests.get(url, headers=HEADERS)
-
-    if res.status_code != 200:
-        return []
-
-    data = res.json()
-    return data if isinstance(data, list) else []
-
-def get_prs(owner, repo):
-    prs = []
-    page = 1
-
-    while page <= MAX_PAGES and len(prs) < MAX_PR_PER_REPO:
-        url = f"{BASE_URL}/repos/{owner}/{repo}/pulls"
-        params = {
-            "state": "closed",
-            "per_page": 100,
-            "page": page
-        }
-
-        res = requests.get(url, headers=HEADERS, params=params)
-
-        if res.status_code == 404:
-            print(f"Repo sem PRs: {owner}/{repo}")
-            return []
-
-        if res.status_code != 200:
-            print(f"Erro PR {owner}/{repo}:", res.status_code)
-            break
-
-        data = res.json()
-
-        if not isinstance(data, list) or not data:
-            break
-
-        for pr in data:
-            if len(prs) >= MAX_PR_PER_REPO:
-                break
-
-            created = pr.get("created_at")
-            closed = pr.get("closed_at")
-
-            if not created or not closed:
-                continue
-
-            fmt = "%Y-%m-%dT%H:%M:%SZ"
-            created_dt = datetime.strptime(created, fmt)
-            closed_dt = datetime.strptime(closed, fmt)
-
-            analysis_time = (closed_dt - created_dt).total_seconds()
-
-            if analysis_time < 3600:
-                continue
-
-            number = pr["number"]
-
-            details = get_pr_details(owner, repo, number)
-            if not details:
-                continue
-
-            reviews = get_reviews(owner, repo, number)
-            if len(reviews) == 0:
-                continue
-
-            prs.append({
-                "repo": f"{owner}/{repo}",
-                "analysis_time": analysis_time,
-                "comments": pr.get("comments", 0),
-                "description_length": len(pr.get("body") or ""),
-                "status": "merged" if pr.get("merged_at") else "closed",
-
-                "additions": details.get("additions", 0),
-                "deletions": details.get("deletions", 0),
-                "files": details.get("changed_files", 0),
-                "reviews": len(reviews)
-            })
-
-        page += 1
-
-    return prs
-
-def process_repo(r):
-    owner = r["owner"]["login"]
-    name = r["name"]
-
-    print(f"Processando {owner}/{name}...")
-
-    return get_prs(owner, name)
 
 def main():
-    repos = get_top_repos()
-    dataset = []
+    parser = argparse.ArgumentParser(description="Lab03 - Code Review no GitHub")
+    parser.add_argument("--collect", action="store_true", help="Coleta repositorios e PRs")
+    parser.add_argument("--analyse", action="store_true", help="Analisa o dataset coletado")
+    args = parser.parse_args()
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        results = executor.map(process_repo, repos)
-
-    for prs in results:
-        dataset.extend(prs)
-
-    print("Total PRs coletados:", len(dataset))
+    if args.collect and not args.analyse:
+        collect()
+    elif args.analyse and not args.collect:
+        analyse()
+    else:
+        # padrao: coleta + analise
+        df = collect()
+        analyse(df)
 
 
 if __name__ == "__main__":
