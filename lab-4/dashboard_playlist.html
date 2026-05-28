@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Playlist Metrics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #161a24;
+    --card: #1d2230;
+    --border: #2a3045;
+    --accent: #4f8ef7;
+    --accent2: #7c5ef7;
+    --accent3: #f75e7c;
+    --accent4: #5ef79a;
+    --text: #e8ecf5;
+    --muted: #7a85a0;
+    --heading: 'Space Mono', monospace;
+    --body: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  header {
+    background: linear-gradient(135deg, #0d0f14 0%, #131829 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 32px 48px 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute; top:-60px; right:-60px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(79,142,247,.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-tag {
+    font-family: var(--heading);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  header h1 {
+    font-family: var(--heading);
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  header p {
+    color: var(--muted);
+    font-size: 13px;
+    max-width: 600px;
+  }
+  .header-stats {
+    display: flex; gap: 32px; margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  .hstat { display: flex; flex-direction: column; }
+  .hstat-val {
+    font-family: var(--heading);
+    font-size: 22px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .hstat-label {
+    font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  .tabs {
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 0 48px;
+    background: var(--surface);
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 14px 22px;
+    font-family: var(--heading);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all .2s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  main { padding: 32px 48px; max-width: 1400px; margin: 0 auto; }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  .section-title {
+    font-family: var(--heading);
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .section-rq {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+  .section-desc {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 28px;
+    max-width: 700px;
+  }
+
+  .grid { display: grid; gap: 20px; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .card-title {
+    font-family: var(--heading);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title::before {
+    content: '';
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::after {
+    content: '';
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 2px;
+  }
+  .kpi.blue::after  { background: var(--accent); }
+  .kpi.purple::after { background: var(--accent2); }
+  .kpi.red::after   { background: var(--accent3); }
+  .kpi.green::after { background: var(--accent4); }
+
+  .kpi-val {
+    font-family: var(--heading);
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .kpi.blue .kpi-val   { color: var(--accent); }
+  .kpi.purple .kpi-val { color: var(--accent2); }
+  .kpi.red .kpi-val    { color: var(--accent3); }
+  .kpi.green .kpi-val  { color: var(--accent4); }
+  .kpi-label { font-size: 12px; color: var(--muted); }
+
+  canvas { max-height: 320px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    font-family: var(--heading);
+    font-size: 10px; letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 12px;
+    text-align: left;
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(42,48,69,.5);
+    font-size: 13px;
+  }
+  tr:last-child td { border-bottom: none; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  @media (max-width: 900px) {
+    header, .tabs, main { padding-left: 20px; padding-right: 20px; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-tag">Playlist Metrics · Análise de Dados</div>
+  <h1>Playlist Metrics Dashboard</h1>
+  <p>Análise de engagement e churn em playlists de tutoriais de programação no YouTube.</p>
+  <div class="header-stats">
+    <div class="hstat"><span class="hstat-val">572</span><span class="hstat-label">Playlists</span></div>
+    <div class="hstat"><span class="hstat-val">10</span><span class="hstat-label">Linguagens</span></div>
+    <div class="hstat"><span class="hstat-val">98.6%</span><span class="hstat-label">Taxa de Churn</span></div>
+    <div class="hstat"><span class="hstat-val">3</span><span class="hstat-label">Grupos de Tamanho</span></div>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active"  onclick="showTab('caracterizacao', this)">Caracterização</div>
+  <div class="tab"         onclick="showTab('rq1', this)">RQ1 · Engagement</div>
+  <div class="tab"         onclick="showTab('rq2', this)">RQ2 · Churn</div>
+</div>
+
+<main>
+
+<!-- ── CARACTERIZAÇÃO ── -->
+<div id="caracterizacao" class="section active">
+  <div class="section-title">Caracterização do Dataset</div>
+  <p class="section-desc">Distribuição do dataset por linguagem, tamanho das playlists e estatísticas descritivas de engajamento.</p>
+
+  <div class="kpi-grid">
+    <div class="kpi blue">  <div class="kpi-val">572</div><div class="kpi-label">Total de playlists</div></div>
+    <div class="kpi purple"><div class="kpi-val">10</div> <div class="kpi-label">Linguagens diferentes</div></div>
+    <div class="kpi green"> <div class="kpi-val">83</div> <div class="kpi-label">Maior grupo — Python</div></div>
+    <div class="kpi red">   <div class="kpi-val">26</div> <div class="kpi-label">Menor grupo — Go</div></div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="card-title">Playlists por Linguagem</div>
+      <canvas id="chartLang"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Distribuição por Tamanho de Playlist</div>
+      <canvas id="chartSize"></canvas>
+    </div>
+  </div>
+
+  <div class="grid grid-2" style="margin-top:20px">
+    <div class="card">
+      <div class="card-title">Estatísticas por Linguagem</div>
+      <table>
+        <thead>
+          <tr><th>Linguagem</th><th>N</th><th>Mediana Engajamento</th><th>Taxa de Churn</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Python</td>    <td>83</td><td>0.0298</td><td><span class="badge" style="background:rgba(79,142,247,.15);color:var(--accent)">96.4%</span></td></tr>
+          <tr><td>Java</td>      <td>76</td><td>0.0336</td><td><span class="badge" style="background:rgba(247,94,124,.15);color:var(--accent3)">100%</span></td></tr>
+          <tr><td>C++</td>       <td>71</td><td>0.0311</td><td><span class="badge" style="background:rgba(247,94,124,.15);color:var(--accent3)">98.6%</span></td></tr>
+          <tr><td>C#</td>        <td>71</td><td>0.0228</td><td><span class="badge" style="background:rgba(247,94,124,.15);color:var(--accent3)">100%</span></td></tr>
+          <tr><td>PHP</td>       <td>67</td><td>0.0286</td><td><span class="badge" style="background:rgba(247,94,124,.15);color:var(--accent3)">100%</span></td></tr>
+          <tr><td>JavaScript</td><td>62</td><td>0.0311</td><td><span class="badge" style="background:rgba(247,94,124,.15);color:var(--accent3)">100%</span></td></tr>
+          <tr><td>C</td>         <td>57</td><td>0.0283</td><td><span class="badge" style="background:rgba(247,94,124,.15);color:var(--accent3)">98.2%</span></td></tr>
+          <tr><td>TypeScript</td><td>32</td><td>0.0244</td><td><span class="badge" style="background:rgba(79,142,247,.15);color:var(--accent)">96.9%</span></td></tr>
+          <tr><td>Shell</td>     <td>27</td><td>0.0233</td><td><span class="badge" style="background:rgba(79,142,247,.15);color:var(--accent)">96.3%</span></td></tr>
+          <tr><td>Go</td>        <td>26</td><td>0.0208</td><td><span class="badge" style="background:rgba(79,142,247,.15);color:var(--accent)">96.2%</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Mediana de Engajamento por Linguagem</div>
+      <canvas id="chartEngLang"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ── RQ1 ── -->
+<div id="rq1" class="section">
+  <div class="section-title">Questão de Pesquisa 1</div>
+  <div class="section-rq">Como o engajamento varia entre diferentes linguagens de programação?</div>
+  <p class="section-desc">Comparação da mediana do engajamento (mean_signal) entre linguagens e grupos de tamanho de playlist.</p>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="card-title">Mediana do Engajamento por Linguagem</div>
+      <canvas id="chartRQ1bar"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Mediana do Engajamento por Tamanho de Playlist</div>
+      <canvas id="chartRQ1size"></canvas>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <div class="card-title">Engajamento por Tamanho — Top 3 Linguagens</div>
+    <canvas id="chartRQ1grouped" style="max-height:260px"></canvas>
+  </div>
+</div>
+
+<!-- ── RQ2 ── -->
+<div id="rq2" class="section">
+  <div class="section-title">Questão de Pesquisa 2</div>
+  <div class="section-rq">Em que ponto das playlists os espectadores abandonam o conteúdo?</div>
+  <p class="section-desc">Posição normalizada de churn (0 = início, 1 = final) por linguagem e tamanho de playlist.</p>
+
+  <div class="kpi-grid">
+    <div class="kpi blue">  <div class="kpi-val">564</div>  <div class="kpi-label">Playlists com churn</div></div>
+    <div class="kpi purple"><div class="kpi-val">98.6%</div> <div class="kpi-label">Taxa geral de churn</div></div>
+    <div class="kpi green"> <div class="kpi-val">~0.52</div> <div class="kpi-label">Mediana posição churn</div></div>
+    <div class="kpi red">   <div class="kpi-val">Metade</div><div class="kpi-label">Abandono típico</div></div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="card-title">Taxa de Churn por Linguagem (%)</div>
+      <canvas id="chartRQ2churn"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Posição Normalizada de Churn por Tamanho</div>
+      <canvas id="chartRQ2pos"></canvas>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const COLORS = [
+  '#4f8ef7','#7c5ef7','#f75e7c','#5ef79a','#f7b25e',
+  '#5ef7e8','#f75eb2','#a5f75e','#f7e55e','#5e8af7'
+];
+
+const langLabels = ['Python','Java','C++','C#','PHP','JavaScript','C','TypeScript','Shell','Go'];
+const langCounts = [83,76,71,71,67,62,57,32,27,26];
+const langEng    = [0.0298,0.0336,0.0311,0.0228,0.0286,0.0311,0.0283,0.0244,0.0233,0.0208];
+const langChurn  = [96.4,100,98.6,100,100,100,98.2,96.9,96.3,96.2];
+
+const scaleDefaults = {
+  x: { ticks: { color: '#7a85a0' }, grid: { color: 'rgba(42,48,69,.4)' } },
+  y: { ticks: { color: '#7a85a0' }, grid: { color: 'rgba(42,48,69,.4)' } }
+};
+const legendDefault = { labels: { color: '#7a85a0', font: { size: 11 } } };
+
+new Chart(document.getElementById('chartLang'), {
+  type: 'bar',
+  data: {
+    labels: langLabels,
+    datasets: [{ label: 'N de playlists', data: langCounts, backgroundColor: COLORS, borderRadius: 5 }]
+  },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: scaleDefaults }
+});
+
+new Chart(document.getElementById('chartSize'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Pequena (≤9)','Média (10–30)','Grande (>30)'],
+    datasets: [{ data: [107,292,173], backgroundColor: ['#4f8ef7','#7c5ef7','#5ef79a'], borderWidth: 0 }]
+  },
+  options: { responsive: true, plugins: { legend: { labels: { color: '#7a85a0' } } } }
+});
+
+new Chart(document.getElementById('chartEngLang'), {
+  type: 'bar',
+  data: {
+    labels: langLabels,
+    datasets: [{ label: 'Mediana Engajamento', data: langEng, backgroundColor: COLORS, borderRadius: 5 }]
+  },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: scaleDefaults }
+});
+
+new Chart(document.getElementById('chartRQ1bar'), {
+  type: 'bar',
+  data: {
+    labels: langLabels,
+    datasets: [{ label: 'Mediana do Engajamento', data: langEng, backgroundColor: '#4f8ef7', borderRadius: 5 }]
+  },
+  options: { responsive: true, indexAxis: 'y', plugins: { legend: { labels: legendDefault.labels } }, scales: scaleDefaults }
+});
+
+new Chart(document.getElementById('chartRQ1size'), {
+  type: 'bar',
+  data: {
+    labels: ['Pequena (≤9)','Média (10–30)','Grande (>30)'],
+    datasets: [{ label: 'Mediana Engajamento', data: [0.031, 0.027, 0.025], backgroundColor: ['#4f8ef7','#7c5ef7','#5ef79a'], borderRadius: 5 }]
+  },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: scaleDefaults }
+});
+
+new Chart(document.getElementById('chartRQ1grouped'), {
+  type: 'bar',
+  data: {
+    labels: ['Pequena','Média','Grande'],
+    datasets: [
+      { label: 'Python',     data: [0.035, 0.029, 0.027], backgroundColor: COLORS[0], borderRadius: 3 },
+      { label: 'Java',       data: [0.040, 0.033, 0.031], backgroundColor: COLORS[1], borderRadius: 3 },
+      { label: 'JavaScript', data: [0.034, 0.030, 0.028], backgroundColor: COLORS[5], borderRadius: 3 },
+    ]
+  },
+  options: { responsive: true, plugins: { legend: { labels: legendDefault.labels } }, scales: scaleDefaults }
+});
+
+new Chart(document.getElementById('chartRQ2churn'), {
+  type: 'bar',
+  data: {
+    labels: langLabels,
+    datasets: [{ label: 'Churn (%)', data: langChurn, backgroundColor: '#f75e7c', borderRadius: 5 }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: { ...scaleDefaults, y: { ...scaleDefaults.y, min: 90, max: 101 } }
+  }
+});
+
+new Chart(document.getElementById('chartRQ2pos'), {
+  type: 'bar',
+  data: {
+    labels: ['Pequena (≤9)','Média (10–30)','Grande (>30)'],
+    datasets: [{ label: 'Mediana Posição Normalizada de Churn', data: [0.56, 0.52, 0.49], backgroundColor: ['#4f8ef7','#7c5ef7','#f75e7c'], borderRadius: 5 }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: { ...scaleDefaults, y: { ...scaleDefaults.y, min: 0, max: 1 } }
+  }
+});
+
+function showTab(id, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>
