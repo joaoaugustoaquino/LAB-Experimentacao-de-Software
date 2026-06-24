@@ -1,0 +1,3 @@
+RQ,metrica,teste,estatistica,p_valor,diferenca_mediana_REST_menos_GraphQL,significativo_5pct
+RQ1,Tempo de Resposta,"Wilcoxon (pareado, não-paramétrico)",0.0,2.3190458935669214e-46,724.2956999998569,True
+RQ2,Tamanho da Resposta,"Wilcoxon (pareado, não-paramétrico)",0.0,1.8574213429154364e-46,25645.0,True

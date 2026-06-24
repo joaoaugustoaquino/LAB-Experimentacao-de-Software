@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>LAB05 — GraphQL vs REST — Dashboard de Resultados</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f4f5f7; margin: 0; padding: 24px; color: #1f2937;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 800; margin: 0 0 4px; }
+  .subtitle { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
+  .cards { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .card { background: #fff; border-radius: 12px; padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); flex: 1; min-width: 220px; }
+  .card-label { font-size: 13px; color: #8a8a8a; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .card-values { display: flex; gap: 24px; margin-bottom: 10px; }
+  .card-values .rest-label { font-size: 12px; color: #4C72B0; font-weight: 600; }
+  .card-values .gql-label { font-size: 12px; color: #DD8452; font-weight: 600; }
+  .card-values .value { font-size: 22px; font-weight: 700; }
+  .badge { font-size: 13px; color: #059669; font-weight: 600; background: #ecfdf5; display: inline-block; padding: 4px 10px; border-radius: 6px; }
+  .tests-panel { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px; }
+  .tests-panel-label { font-size: 13px; color: #8a8a8a; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+  .tests-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .tests-grid { grid-template-columns: 1fr; } }
+  .test-box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; }
+  .test-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .test-title { font-weight: 700; }
+  .test-sig { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+  .test-sig.yes { color: #059669; background: #ecfdf5; }
+  .test-sig.no { color: #dc2626; background: #fef2f2; }
+  .test-body { font-size: 13px; color: #6b7280; line-height: 1.6; }
+  .toggle { display: flex; gap: 8px; margin-bottom: 16px; }
+  .toggle button {
+    padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;
+    font-weight: 600; font-size: 13px; background: #fff; color: #6b7280;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  .toggle button.active { background: #1f2937; color: #fff; }
+  .chart-panel { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px; }
+  .chart-title { font-size: 14px; font-weight: 700; margin-bottom: 16px; }
+  .footer { font-size: 12px; color: #9ca3af; text-align: center; padding-bottom: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>GraphQL vs REST — Dashboard de Resultados</h1>
+  <div class="subtitle">Experimento controlado · API do GitHub · 10 repositórios · 571 medições válidas analisadas</div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Tempo de Resposta (média)</div>
+      <div class="card-values">
+        <div><div class="rest-label">REST</div><div class="value">1.382,98 ms</div></div>
+        <div><div class="gql-label">GraphQL</div><div class="value">636,99 ms</div></div>
+      </div>
+      <div class="badge">↓ 53,9% com GraphQL</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Tamanho da Resposta (média)</div>
+      <div class="card-values">
+        <div><div class="rest-label">REST</div><div class="value">29.371 B</div></div>
+        <div><div class="gql-label">GraphQL</div><div class="value">765 B</div></div>
+      </div>
+      <div class="badge">↓ 97,4% com GraphQL</div>
+    </div>
+  </div>
+
+  <div class="tests-panel">
+    <div class="tests-panel-label">Testes de Hipótese (α = 0,05)</div>
+    <div class="tests-grid">
+      <div class="test-box">
+        <div class="test-header">
+          <span class="test-title">RQ1 — Tempo de Resposta</span>
+          <span class="test-sig yes">SIGNIFICATIVO</span>
+        </div>
+        <div class="test-body">
+          Teste: Wilcoxon (pareado, não-paramétrico)<br>
+          Estatística: 0,00 · p-valor: &lt; 0,001<br>
+          Diferença mediana (REST − GraphQL): <strong>724,30 ms</strong>
+        </div>
+      </div>
+      <div class="test-box">
+        <div class="test-header">
+          <span class="test-title">RQ2 — Tamanho da Resposta</span>
+          <span class="test-sig yes">SIGNIFICATIVO</span>
+        </div>
+        <div class="test-body">
+          Teste: Wilcoxon (pareado, não-paramétrico)<br>
+          Estatística: 0,00 · p-valor: &lt; 0,001<br>
+          Diferença mediana (REST − GraphQL): <strong>25.645 bytes</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toggle">
+    <button id="btn-tempo" class="active" onclick="mostrar('tempo')">Tempo de Resposta</button>
+    <button id="btn-tamanho" onclick="mostrar('tamanho')">Tamanho da Resposta</button>
+  </div>
+
+  <div class="chart-panel">
+    <div class="chart-title" id="chart-title">Tempo Médio de Resposta por Repositório</div>
+    <canvas id="grafico" height="110"></canvas>
+  </div>
+
+  <div class="footer">LAB05 · Laboratório de Experimentação de Software · PUC Minas</div>
+</div>
+
+<script>
+const repos = ["angular", "django", "react", "vscode", "node", "pytorch", "rails", "tensorflow", "linux", "vue"];
+const tempoRest = [1373.83, 1341.39, 1754.44, 1470.2, 1386.23, 1444.47, 1319.41, 1427.06, 1236.83, 1321.66];
+const tempoGql = [633.41, 628.96, 641.55, 689.11, 660.71, 638.13, 622.37, 679.37, 567.82, 610.29];
+const tamRest = [33888.1, 25854.0, 20350.0, 35387.48, 39266.0, 53174.9, 24334.0, 24372.0, 5081.0, 25091.0];
+const tamGql = [925.0, 209.0, 801.0, 766.0, 835.0, 1020.0, 936.0, 1006.0, 176.0, 990.0];
+
+const ctx = document.getElementById('grafico').getContext('2d');
+let chart = new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: repos,
+    datasets: [
+      { label: 'REST', data: tempoRest, backgroundColor: '#4C72B0', borderRadius: 4 },
+      { label: 'GraphQL', data: tempoGql, backgroundColor: '#DD8452', borderRadius: 4 }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top' } },
+    scales: { y: { title: { display: true, text: 'ms' } } }
+  }
+});
+
+function mostrar(tipo) {
+  document.getElementById('btn-tempo').classList.toggle('active', tipo === 'tempo');
+  document.getElementById('btn-tamanho').classList.toggle('active', tipo === 'tamanho');
+  document.getElementById('chart-title').innerText = tipo === 'tempo'
+    ? 'Tempo Médio de Resposta por Repositório'
+    : 'Tamanho Médio de Resposta por Repositório';
+
+  chart.data.datasets[0].data = tipo === 'tempo' ? tempoRest : tamRest;
+  chart.data.datasets[1].data = tipo === 'tempo' ? tempoGql : tamGql;
+  chart.options.scales.y.title.text = tipo === 'tempo' ? 'ms' : 'bytes';
+  chart.update();
+}
+</script>
+</body>
+</html>
