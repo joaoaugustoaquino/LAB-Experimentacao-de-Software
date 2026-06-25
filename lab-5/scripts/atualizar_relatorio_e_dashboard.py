@@ -1,19 +1,3 @@
-"""
-LAB05 - Gerador automático de relatório e dashboard a partir dos dados reais
-
-Lê data/resultados_limpos.csv, data/estatisticas_descritivas.csv e
-data/testes_hipotese.csv, e gera:
-  - scripts/gerar_relatorio.js  (com os números já atualizados)
-  - dashboard.jsx               (com os números já atualizados)
-
-Depois de rodar este script, basta rodar:
-  node scripts/gerar_relatorio.js
-para produzir o .docx final com os dados corretos.
-
-Uso:
-  python atualizar_relatorio_e_dashboard.py
-"""
-
 import os
 import json
 import pandas as pd

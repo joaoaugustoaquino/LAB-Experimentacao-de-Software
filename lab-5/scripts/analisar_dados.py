@@ -1,15 +1,3 @@
-"""
-LAB05 - Análise de Resultados (Sprint 2 - Passo 4)
-
-Lê data/resultados_brutos.csv, faz validação/limpeza, estatística descritiva,
-testes de normalidade e teste de hipótese apropriado para RQ1 e RQ2.
-
-Gera:
-  - data/estatisticas_descritivas.csv
-  - data/testes_hipotese.csv
-  - Saída no console com interpretação
-"""
-
 import os
 import pandas as pd
 import numpy as np
@@ -92,9 +80,6 @@ for nome, grupo in [("REST", rest), ("GraphQL", graphql)]:
 print("\n" + "=" * 70)
 print("4. TESTES DE HIPÓTESE (RQ1: tempo | RQ2: tamanho)")
 print("=" * 70)
-print("Como o desenho é PAREADO (mesmo repositório nos dois tratamentos),")
-print("usamos teste pareado. Se ambos os grupos forem normais -> t-pareado.")
-print("Caso contrário (mais comum em métricas de tempo/rede) -> Wilcoxon pareado.\n")
 
 resultados_testes = []
 
